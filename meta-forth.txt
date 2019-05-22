@@ -1,0 +1,367 @@
+.syntax [ program exp1 exp3 arg output exp2 exp1
+          comment stat support declist main ] program
+
+arg = '*1' { 'emit-label-a' } { '0 to a-unlocked?' }
+    | '*2' { 'emit-label-b' } { '0 to b-unlocked?' }
+    | '*'  { 'emit-token' }
+    | .string { 's\" ' * ' mtype' };
+
+output = '{' $ arg '}' { 'emit-newline'  }
+       | '<' $ arg '>' { 'unlock-labels' } ;
+
+exp3 = .id { 'meta-' * ~' @ execute~ }
+     | .string { 's\" ' * ' read-literal' }
+     | '.id' { 'read-id' }
+     | '.number' { 'read-number' }
+     | '.string' { 'read-string' }
+     | '.lm+' { '2 indent +!' }
+     | '.lm-' { '-2 indent +!' }
+     | '(' exp1 ')'
+     | '.e' { 'true to flagged?' }
+     | '$' { '0 0 do' } .lm+
+       exp3 .lm- {'flagged? invert if leave then loop' }
+       { 'true to flagged?' };
+
+exp2 =  ( exp3 { 'flagged? if' }    | output { 'true if' } ) .lm+
+       $( exp3 { 'maybe-error' } | output )
+       .lm- { 'then' } ;
+
+exp1 = { '1 0 do' } .lm+ exp2
+       $( '|' { 'flagged? if leave then' } exp2 )
+       .lm- { 'loop' } ;
+
+comment = '[' .string ']' ;
+stat = .id
+       { 'meta-' * ~'~ }
+       { ': meta-' * }
+       .lm+ '=' exp1 ';'
+       .lm- { '; latestxt swap ! ' }
+     | comment ;
+
+support = {~
+\ Output name, input string, token
+variable out-name
+variable s
+variable slen
+0 value t
+variable tlen
+\ Output
+variable o
+
+\ Labels
+variable a-counter
+variable b-counter
+\ Label locks
+true value a-unlocked?
+true value b-unlocked?
+
+\ Patching for forward declarations
+0 value patchlen
+0 value patchaddr
+
+\ Current location in string, flag, indentation level, newline flag
+variable p
+0 p !
+false value flagged?
+false value newlined?
+variable indent
+
+
+\ Line counter
+variable lines
+1 lines !
+
+10 constant \n
+
+: set-source! ( c-addr u -- ) slen ! s ! ;
+: c-array-ref ( a b -- a[b] ) + c@ ;
+: isspace ( c -- # )
+  dup dup
+   32 = \ space
+  swap
+   9  = \ tab
+  or swap
+   10 = \ newline
+  or
+  ;
+
+: curr-char s @ p @ c-array-ref ;
+: next-char 1 p +! ;
+: skip-whitespace
+  begin
+    curr-char isspace
+  while
+    curr-char
+    \n = if 1 lines +! then
+    next-char
+  repeat
+;
+
+: ?free ?dup if free then ;
+
+\ Make a token up to char sp.
+: make-token { sp -- }
+
+  t ?free
+  p @ sp - { length } \ length = p - sp
+  length 1+ allocate if ." failed to allocate memory in make-token" then
+  to t
+  \ Store NUL
+  0 t length +  c!
+  s @ sp + t length cmove
+  \ Store token length
+  length tlen !
+;
+
+126 constant tilde
+39  constant tick
+34  constant dtick
+: emit-token
+    t c@ tick  =
+    t c@ tilde =
+  or
+    if
+      t c@ { d }
+      tlen @ 1 do
+        t i c-array-ref dup
+        d = if drop leave then
+        case
+          \n       of .\" \\n"  endof
+          dtick    of .\" \\\"" endof
+          tick     of .\" \\\'" endof
+          [char] \ of .\" \\\\" endof
+        \ Otherwise, print the character.
+        dup emit
+        endcase
+      loop
+      dtick  emit
+    else
+      t tlen @ type
+    then
+;
+
+
+: print-indent indent @ spaces ;
+
+: mtype ( c-addr u --)
+  newlined? if print-indent then
+  type
+  0 to newlined?
+;
+
+\ Print a label number
+: pp 0 <<# # # #> type space #>> ;
+
+: emit-label-a
+  a-unlocked? if 1 else 0 then a-counter +!
+  [char] a emit
+  a-counter @ pp
+  space
+;
+
+: emit-label-b
+  b-unlocked? if 1 else 0 then b-counter +!
+  [char] b emit
+  b-counter @ pp
+  space
+;
+
+: unlock-labels
+  true to a-unlocked?
+  true to b-unlocked?
+;
+
+: emit-newline 1 to newlined? cr ;
+
+: read-literal ( c-addr u -- )
+  { length }
+  p @ 0 { l e i  }
+  skip-whitespace
+
+  length 0 do
+        curr-char 0<>
+        l i c-array-ref 0<>
+      and
+      curr-char  l i c-array-ref   =
+    and
+    if
+      next-char
+      i 1+ to i
+    else
+      leave
+    then
+  loop
+
+  i length = if
+    true to flagged?
+    e
+    make-token
+  else
+    e p !
+    false to flagged?
+  then
+;
+
+: isalpha
+  dup
+    [char] A [char] Z 1+ within swap
+    [char] a [char] z 1+ within
+  or
+;
+
+: isdigit
+  [char] 0 [char] 9 1+ within
+;
+
+: isalnum
+  dup
+    isalpha swap
+    isdigit
+  or
+;
+
+: read-id
+  skip-whitespace
+  p @ { e }
+  curr-char isalpha if
+    next-char
+    true to flagged?
+  else
+    false to flagged?
+    exit
+  then
+
+  begin
+    curr-char isalnum
+  while
+    next-char
+  repeat
+
+  e make-token
+;
+
+: read-number
+  skip-whitespace
+  p @ { e }
+  curr-char [char] - = if next-char then
+
+  curr-char isdigit if
+    next-char
+    true to flagged?
+  else
+    false to flagged?
+    exit
+  then
+
+  begin
+    curr-char isdigit
+  while
+    next-char
+  repeat
+
+  e make-token
+;
+
+: read-string
+  skip-whitespace
+  p @ { e }
+  0 { delim }
+
+    curr-char tick  =
+    curr-char tilde =
+  or
+  if
+    curr-char to delim
+    next-char
+
+    begin
+      curr-char delim <>
+    while
+      curr-char \n =
+      if
+        1 lines +!
+      then
+      next-char
+    repeat
+    curr-char delim = if
+      next-char
+      true to flagged?
+      e make-token
+      exit
+    else
+      curr-char 0= if
+        e p !
+        false to flagged?
+        exit
+      then
+    else
+      false to flagged?
+      exit
+    then
+  then
+;
+
+: maybe-error
+  flagged? invert if
+    ." Error in line " lines ? ." at token '" t tlen @ type ." '"
+    ." character " p @ .
+    s" Parse error" exception throw
+  then
+;
+
+0 value fd-in
+0 value fd-out
+: open-input ( addr u -- )
+  r/o open-file throw to fd-in
+;
+: open-output ( addr u -- )
+  w/o create-file throw to fd-out
+;
+
+\ Size of each read.
+1000 1000 * constant blk-size
+
+\ Current size of the file buffer.
+0 value curr-buf-size
+
+\ Pointer to the file buffer.
+0 value file-buffer
+
+blk-size allocate throw to file-buffer
+
+\ Read a file, zero-delimited.
+: do-read-file
+  file-buffer blk-size fd-in read-file { bytes status }
+  bytes to curr-buf-size
+  0 file-buffer bytes + !
+;
+
+: close-input ( -- ) fd-in close-file throw ;
+: close-output ( -- ) fd-out close-file throw ;
+
+
+: set-file-as-input file-buffer curr-buf-size set-source! ;
+: print-file file-buffer curr-buf-size type ;~} ;
+
+declist = '[' $ (.id {'variable meta-' * ~'~} ) ']' ;
+
+main = .id {
+~: main
+  argc @ 3 <> if
+    s" usage: meta <input> <output>" exception throw
+  then
+  next-arg 2dup type cr open-input
+  do-read-file set-file-as-input
+  close-input
+
+  next-arg 2dup type cr open-output
+
+  s" meta-~ * ~" find-name name>int fd-out outfile-execute
+  close-output
+  bye
+
+;~} ;
+
+program = '.syntax' declist support main $ stat '.end' { 'main' };
+
+.end
