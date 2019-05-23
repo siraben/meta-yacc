@@ -6,8 +6,7 @@ arg = '*1' { 'emit_label_a();' } { 'll &= 2;' }
     | '*'  { 'emit_token();' }
     | .string { 'emit(' * ');' };
 
-output = '{' $ arg '}' { 'emit_newline();'  }
-       | '<' $ arg '>' { 'unlock_labels();' } ;
+output = ('{' $ arg '}' { 'emit-newline();' } | '<' $ arg '>' ) ;
 
 exp3 = .id { 'meta_' * '();' }
      | .string { 'read_literal(' * ');' }

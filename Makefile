@@ -5,4 +5,4 @@ recomp: meta meta-c.txt
 forth_bootstrap:  meta meta-forth.txt
 	./meta meta-forth.txt forth.c && $(CC) -o forth forth.c && ./forth meta-forth.txt meta.fs
 forth_recomp: meta meta-forth.txt
-	$(CC) -o forth forth.c && ./forth meta-forth.txt meta.fs
+	gforth meta.fs meta-forth.txt meta.fs

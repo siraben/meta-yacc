@@ -1,10 +1,11 @@
 .syntax [ ex3 ex2 ex1 ] ex1
 
-ex3 =  (.id | .number) < * ' ' > | '(' ex1 ')' ;
-
-ex2 = ex3 $ ('*' ex3 < '* ' > ) ;
-
 ex1 = ex2 $ ( ('+' ex2 < '+ ' > )
             | ('-' ex2 < '- ' > )) ;
+
+ex2 = ex3 $ ('*' ex3 < '* ' > ) ;
+            
+ex3 =  (.id | .number) < * ' ' > | '(' ex1 ')' ;
+
 
 .end

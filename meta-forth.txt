@@ -1,15 +1,12 @@
 .syntax [ program exp1 exp3 arg output exp2 exp1
           comment stat support declist main ] program
 
-arg = '*1' { 'emit-label-a' } { '0 to a-unlocked?' }
-    | '*2' { 'emit-label-b' } { '0 to b-unlocked?' }
-    | '*'  { 'emit-token' }
+arg = '*'  { 'emit-token' }
     | .string { 's\" ' * ' mtype' };
 
-output = '{' $ arg '}' { 'emit-newline'  }
-       | '<' $ arg '>' { 'unlock-labels' } ;
+output = ('{' $ arg '}' { 'emit-newline' } | '<' $ arg '>' ) ;
 
-exp3 = .id { 'meta-' * ~' @ execute~ }
+exp3 = .id { 'meta-' * ~' do-parse~ }
      | .string { 's\" ' * ' read-literal' }
      | '.id' { 'read-id' }
      | '.number' { 'read-number' }
@@ -17,10 +14,10 @@ exp3 = .id { 'meta-' * ~' @ execute~ }
      | '.lm+' { '2 indent +!' }
      | '.lm-' { '-2 indent +!' }
      | '(' exp1 ')'
-     | '.e' { 'true to flagged?' }
+     | '.e' { 'set-flag!' }
      | '$' { '0 0 do' } .lm+
        exp3 .lm- {'flagged? invert if leave then loop' }
-       { 'true to flagged?' };
+       { 'set-flag!' };
 
 exp2 =  ( exp3 { 'flagged? if' }    | output { 'true if' } ) .lm+
        $( exp3 { 'maybe-error' } | output )
@@ -48,17 +45,6 @@ variable tlen
 \ Output
 variable o
 
-\ Labels
-variable a-counter
-variable b-counter
-\ Label locks
-true value a-unlocked?
-true value b-unlocked?
-
-\ Patching for forward declarations
-0 value patchlen
-0 value patchaddr
-
 \ Current location in string, flag, indentation level, newline flag
 variable p
 0 p !
@@ -72,54 +58,66 @@ variable lines
 1 lines !
 
 10 constant \n
-
-: set-source! ( c-addr u -- ) slen ! s ! ;
-: c-array-ref ( a b -- a[b] ) + c@ ;
-: isspace ( c -- # )
-  dup dup
-   32 = \ space
-  swap
-   9  = \ tab
-  or swap
-   10 = \ newline
-  or
-  ;
-
-: curr-char s @ p @ c-array-ref ;
-: next-char 1 p +! ;
-: skip-whitespace
-  begin
-    curr-char isspace
-  while
-    curr-char
-    \n = if 1 lines +! then
-    next-char
-  repeat
-;
-
-: ?free ?dup if free then ;
-
-\ Make a token up to char sp.
-: make-token { sp -- }
-
-  t ?free
-  p @ sp - { length } \ length = p - sp
-  length 1+ allocate if ." failed to allocate memory in make-token" then
-  to t
-  \ Store NUL
-  0 t length +  c!
-  s @ sp + t length cmove
-  \ Store token length
-  length tlen !
-;
+9  constant \t
 
 126 constant tilde
 39  constant tick
 34  constant dtick
-: emit-token
-    t c@ tick  =
-    t c@ tilde =
+
+: set-flag! true to flagged? ;
+: unflag! false to flagged? ;
+: do-parse @ execute ;
+: set-source! ( c-addr u -- ) slen ! s ! ;
+: c-array-ref ( a b -- a[b] ) + c@ ;
+: isspace ( c -- # )
+  dup dup
+   bl = \ space
+  swap
+   \t = \ tab
+  or swap
+   \n = \ newline
   or
+;
+
+: isdelim ( c -- # ) dup tick = swap tilde = or ;
+: curr-char ( -- c ) s @ p @ c-array-ref ;
+: next-char ( -- ) 1 p +! ;
+
+: inc-lines ( -- ) 1 lines +! ;
+: skip-whitespace ( -- )
+  begin
+    curr-char isspace
+  while
+    curr-char
+    \n = if inc-lines then
+    next-char
+  repeat
+;
+
+: ?free dup if free then drop ;
+: ?free_token t ?free ;
+
+: realloc_token
+  tlen @ 1+ allocate if ." failed to allocate memory for token" then
+  to t
+;
+
+\ Make a token up to char sp.
+: make-token { sp -- }
+  ?free_token
+  p @ sp - tlen !
+
+  realloc_token
+  
+  \ Store NUL
+  0 t tlen @ + c!
+  s @ sp + t tlen @  cmove
+  \ Store token length
+;
+
+
+: emit-token
+    t c@ isdelim
     if
       t c@ { d }
       tlen @ 1 do
@@ -134,42 +132,16 @@ variable lines
         dup emit
         endcase
       loop
-      dtick  emit
+      dtick emit
     else
       t tlen @ type
     then
 ;
 
 
-: print-indent indent @ spaces ;
+: print-indent ( -- ) indent @ spaces ;
 
-: mtype ( c-addr u --)
-  newlined? if print-indent then
-  type
-  0 to newlined?
-;
-
-\ Print a label number
-: pp 0 <<# # # #> type space #>> ;
-
-: emit-label-a
-  a-unlocked? if 1 else 0 then a-counter +!
-  [char] a emit
-  a-counter @ pp
-  space
-;
-
-: emit-label-b
-  b-unlocked? if 1 else 0 then b-counter +!
-  [char] b emit
-  b-counter @ pp
-  space
-;
-
-: unlock-labels
-  true to a-unlocked?
-  true to b-unlocked?
-;
+: mtype ( c-addr u -- ) newlined? if print-indent then type 0 to newlined? ;
 
 : emit-newline 1 to newlined? cr ;
 
@@ -193,12 +165,12 @@ variable lines
   loop
 
   i length = if
-    true to flagged?
+    set-flag!
     e
     make-token
   else
     e p !
-    false to flagged?
+    unflag!
   then
 ;
 
@@ -209,9 +181,7 @@ variable lines
   or
 ;
 
-: isdigit
-  [char] 0 [char] 9 1+ within
-;
+: isdigit [char] 0 [char] 9 1+ within ;
 
 : isalnum
   dup
@@ -222,12 +192,13 @@ variable lines
 
 : read-id
   skip-whitespace
-  p @ { e }
+  p @
   curr-char isalpha if
     next-char
-    true to flagged?
+    set-flag!
   else
-    false to flagged?
+    unflag!
+    drop
     exit
   then
 
@@ -237,7 +208,7 @@ variable lines
     next-char
   repeat
 
-  e make-token
+  make-token
 ;
 
 : read-number
@@ -247,9 +218,9 @@ variable lines
 
   curr-char isdigit if
     next-char
-    true to flagged?
+    set-flag!
   else
-    false to flagged?
+    unflag!
     exit
   then
 
@@ -266,10 +237,7 @@ variable lines
   skip-whitespace
   p @ { e }
   0 { delim }
-
-    curr-char tick  =
-    curr-char tilde =
-  or
+    curr-char isdelim
   if
     curr-char to delim
     next-char
@@ -278,24 +246,22 @@ variable lines
       curr-char delim <>
     while
       curr-char \n =
-      if
-        1 lines +!
-      then
+      if inc-lines then
       next-char
     repeat
     curr-char delim = if
       next-char
-      true to flagged?
+      set-flag!
       e make-token
       exit
     else
       curr-char 0= if
         e p !
-        false to flagged?
+        unflag!
         exit
       then
     else
-      false to flagged?
+      unflag!
       exit
     then
   then
@@ -358,6 +324,7 @@ main = .id {
 
   s" meta-~ * ~" find-name name>int fd-out outfile-execute
   close-output
+  depth if s" stack not empty on exit" exception throw then
   bye
 
 ;~} ;
