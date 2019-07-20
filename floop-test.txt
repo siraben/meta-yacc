@@ -1,0 +1,38 @@
+def minus [m,n]:
+
+  'Print out the result of m - n.'
+
+begin
+  int result;
+  if m < n, then: quit;
+  loop at most m + 1 times:
+  begin
+    if result + n = m, then: break;
+    result <- result + 1
+  end;
+  print m; print '- '; print n; print 'is '; println result
+end
+
+def count [n]:
+
+ 'Count up from 1 to n inclusive.'
+
+begin
+  int out;
+  out <- 1;
+  forever:
+  begin
+    if out > n, then: break;
+    print out;
+    out <- out + 1
+  end;
+  println ''
+end
+
+main
+begin
+  println 'Hello, world!';
+  print 'Counting up to 10: ';
+  do count[10];
+  do minus[10, 3]
+end

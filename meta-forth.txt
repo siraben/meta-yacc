@@ -229,8 +229,8 @@ variable lines              1 lines !
 
 : maybe-error
   flagged? invert if ( -- )
-    ." Error in line " lines ? ." at token '" t tlen @ type ." '"
-    ." character " p @ .
+    ." Error in line " lines ? ." at token '" t tlen @ type ." ' "
+    ." at character " p @ . cr
     s" Parse error" exception throw
   then
 ;

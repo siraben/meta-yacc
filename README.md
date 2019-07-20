@@ -1,8 +1,6 @@
 # Self-hosting YACC-like parser generators in Forth and C
 
-To build, run
-
-## Self-build
+## Building
 ### Forth
 ```
 gforth meta.fs meta-forth.txt meta.fs
@@ -11,36 +9,93 @@ gforth meta.fs meta-forth.txt meta.fs
 ```
 gcc -o meta meta.c && ./meta meta-c.txt meta.c && gcc -o meta meta.c
 ```
-meta.fs and meta.c remain unchanged (fixpoint).
+## Usage
+Suppose one has a grammar file called `my-grammar.txt`:
+- Using the Forth parser generator, run `gforth meta.fs my-grammar.txt
+  my-grammar.fs`
+- Using the C parser generator, run `./meta my-grammar.txt
+  my-grammar.c`
 
-Note that you should not use meta.fs to generate C code or meta.c to
-generate Forth code, as the convention for outputting strings is
-different (although some manual tweaking was done to bootstrap meta.fs
-from meta.c).
+Check the generated file.  Syntax errors will be indicated in the
+output file.
+## Example compilers included
+### FlooP language from Gödel, Escher, Bach
+The version of FlooP in this repository is differs from the book in
+several ways, some of which are (list is subject to change):
+- The last statement in a block does not have a semicolon
+- Variables must be declared before use
+- Comments are allowed only after procedure declarations
 
-## Example grammar, convert infix to postfix
+A FlooP → C compiler is given in `floop.txt`.  See `floop-test.txt`
+for an example FlooP program.  Here's a simple Floop program that
+has the output:
 ```
-.syntax [ ex3 ex2 ex1 ] ex1
-
-[~ I am a comment! ~]
-ex3 =  (.id | .number) < * ' ' > | '(' ex1 ')' ;
-
-ex2 = ex3 $ ('*' ex3 < '* ' > ) ;
-
-ex1 = ex2 $ ( ('+' ex2 < '+ ' > )
-            | ('-' ex2 < '- ' > )) ;
-
-.end
+Hello, world!
+Counting up to 10: 1 2 3 4 5 6 7 8 9 10 
 ```
+```
+def count [n]:
 
-Save this as arith.txt, then run `gforth meta.fs arith.txt arith.fs`
+ 'Count up from 1 to n inclusive.'
 
-If arith-test.txt has the contents 
+begin
+  int out;
+  out <- 1;
+  forever:
+  begin
+    if out > n, then: break;
+    print out;
+    out <- out + 1
+  end;
+  println ''
+end
+
+main
+begin
+  println 'Hello, world!';
+  print 'Counting up to 10: ';
+  do count[10]
+end
+```
+Generated C code:
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+int count(int n) {
+  int out = 0;
+  do {
+    out = 1;
+    {
+      int f = 1;
+      while(1 && f) {
+        do {
+          if (out > n) {
+            f = 0;
+          } else { 
+            printf("%d ",out);
+          }
+          out = out + 1;
+        } while (0);
+      }
+    }
+    puts("");
+  } while (0);
+}
+int main(void) {
+  do {
+    puts("Hello, world!");
+    printf("Counting up to 10: ");
+    count(10);
+  } while (0);
+}
+```
+### Convert infix to postfix
+Input:
 ```
 29 * 19293 - 129 + (992 * 30 - 10) - (15 * (-15 + 34 * (182 + 3 - 4)) + 382) * 3 + (102 + 239 * 314) - 222
 ```
-
-After running `gforth arith.fs arith-test.txt out.txt`, the contents of out.txt become
+Output:
 ```
 29 19293 * 129 - 992 30 * 10 - + 15 -15 34 182 3 + 4 - * + * 382 + 3 * - 102 239 314 * + + 222 - 
 ```

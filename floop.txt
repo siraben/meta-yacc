@@ -1,0 +1,92 @@
+.syntax [ st block expr bloop arglistp arglist intst assignst
+          printst printlnst ifst quitst breakst loopst foreverst proc
+          pmain term compare factor callarglistp callarglist callst
+          callexpr ] bloop
+          
+arglistp = ',' .id < ', int ' * > ;
+arglist = '[' < '(int ' > .id < * > $(arglistp) ']' ':' < ')' > ;
+
+intst = 'int' .id { 'int ' * ' = 0;' } ;
+
+assignst = .id < '' * ' = ' > '<-' expr { ';' } ;
+
+printst = 'print' (.id      { 'printf("%d ",' * ');' }
+                  | .string { 'printf("' * ');'      }) ;
+
+printlnst = 'println' (.id      { 'printf("%d\n",' * ');' }
+                      | .string { 'puts("' * ');'     }) ;
+
+
+ifst = 'if' < '' 'if (' >
+       expr { ') {' } .lm+
+       ',' 'then' ':'
+       st ';' .lm- { '} else { ' } .lm+
+       st .lm- { '}' } ;
+
+quitst = 'quit' { 'continue;' } ;
+breakst = 'break' { 'f = 0;' } ;
+
+loopst = 'loop' 'at' 'most' < '' 'for(int i = 0, f = 1; i < ' >
+         expr  { ' && f; i++) {' } .lm+
+         'times' ':'
+         block
+         .lm- { '}' } ;
+
+foreverst = 'forever' ':'
+           { '{' } .lm+
+             { 'int f = 1;' } < '' 'while(1 && f)' > { ' {' } .lm+
+             block
+             .lm- { '}' }
+           .lm- { '}' } ;
+
+st = printlnst
+   | printst
+   | ifst
+   | loopst
+   | foreverst
+   | quitst
+   | breakst
+   | block
+   | callst
+   | assignst ;
+
+block = 'begin'
+         $(intst ';' )
+         { 'do {' } .lm+ st $(';' st) .lm- { '} while (0);' }
+         'end' ;
+
+proc = 'def' .id < 'int ' * > arglist { ' {' } .lm+
+       $(.string)
+       block
+       .lm- { '}' } ;
+
+pmain = 'main' { 'int main(void) {' } .lm+ block .lm- { '}' } ;
+
+term = callexpr
+     | (.id | .number) < * >
+     | '(' < '(' > expr ')' < ')' > ;
+
+compare = term $ (('<'  < ' < '  > term)
+               |  ('>'  < ' > '  > term)
+               |  ('='  < ' == ' > term)
+               |  ('>=' < ' >='  > term)
+               |  ('<=' < ' <='  > term)) ;
+
+factor = compare $ ('*' < ' * ' > compare  ) ;
+
+callarglistp = ',' < ', ' > expr ;
+callarglist = '[' < '(' > expr $(callarglistp) ']' < ')' > ;
+
+callst = 'do' .id < '' * > callarglist { ';' } ;
+
+callexpr = 'do' .id < '' * > callarglist ;
+expr = factor $ (('+' < ' + ' > factor)
+              |  ('-' < ' - ' > factor)) ;
+
+bloop = {
+'#include <stdio.h>
+#include <stdlib.h>
+' }
+$(proc | .string)  pmain ;
+
+.end
