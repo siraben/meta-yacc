@@ -1,38 +1,39 @@
-def minus [m,n]:
-
-  'Print out the result of m - n.'
-
+def mod(a, b):
+  'Compute a (mod b).'
 begin
-  int result;
-  if m < n, then: quit;
-  loop at most m + 1 times:
-  begin
-    if result + n = m, then: break;
-    result <- result + 1
-  end;
-  print m; print '- '; print n; print 'is '; println result
-end
-
-def count [n]:
-
- 'Count up from 1 to n inclusive.'
-
-begin
-  int out;
-  out <- 1;
   forever:
   begin
-    if out > n, then: break;
-    print out;
-    out <- out + 1
-  end;
-  println ''
+    if a - b < 0, then: return a;
+    a <- a - b
+  end
+end
+
+def prime(n):
+  'Return 1 if n is prime, 0 if not.'
+begin
+  int j;
+  if n = 2, then: return 1;
+  begin
+    j <- 2;
+    loop at most n times:
+    begin
+      if j * j > n, then: return 1;
+      if do mod(n, j) = 0, then: return 0;
+      j <- j + 1
+    end
+  end
 end
 
 main
 begin
-  println 'Hello, world!';
-  print 'Counting up to 10: ';
-  do count[10];
-  do minus[10, 3]
+  int a;
+  println 'Primes under 1000';
+  a <- 1;
+  loop at most 1000 times:
+  begin
+    a <- a + 1;
+    if do prime(a), then: print a;
+    continue
+  end;
+  println ''
 end

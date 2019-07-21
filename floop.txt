@@ -1,10 +1,10 @@
-.syntax [ st block expr bloop arglistp arglist intst assignst
-          printst printlnst ifst quitst breakst loopst foreverst proc
-          pmain term compare factor callarglistp callarglist callst
-          callexpr ] bloop
+.syntax [ arglist arglistp assignst block floop breakst callarglist
+          callarglistp callexpr callst compare expr factor foreverst
+          ifst intst loopst pmain printlnst printst proc continuest
+          returnst st term ] floop
           
 arglistp = ',' .id < ', int ' * > ;
-arglist = '[' < '(int ' > .id < * > $(arglistp) ']' ':' < ')' > ;
+arglist = '(' < '(int ' > .id < * > $(arglistp) ')' ':' < ')' > ;
 
 intst = 'int' .id { 'int ' * ' = 0;' } ;
 
@@ -23,7 +23,7 @@ ifst = 'if' < '' 'if (' >
        st ';' .lm- { '} else { ' } .lm+
        st .lm- { '}' } ;
 
-quitst = 'quit' { 'continue;' } ;
+continuest = 'continue' { 'continue;' } ;
 breakst = 'break' { 'f = 0;' } ;
 
 loopst = 'loop' 'at' 'most' < '' 'for(int i = 0, f = 1; i < ' >
@@ -39,16 +39,8 @@ foreverst = 'forever' ':'
              .lm- { '}' }
            .lm- { '}' } ;
 
-st = printlnst
-   | printst
-   | ifst
-   | loopst
-   | foreverst
-   | quitst
-   | breakst
-   | block
-   | callst
-   | assignst ;
+st = printlnst | printst | ifst     | loopst | foreverst | continuest |
+     breakst   | block   | returnst | callst | assignst ;
 
 block = 'begin'
          $(intst ';' )
@@ -62,8 +54,11 @@ proc = 'def' .id < 'int ' * > arglist { ' {' } .lm+
 
 pmain = 'main' { 'int main(void) {' } .lm+ block .lm- { '}' } ;
 
+expr = factor $ (('+' < ' + ' > factor)
+              |  ('-' < ' - ' > factor)) ;
+
 term = callexpr
-     | (.id | .number) < * >
+     |  (.id | .number)     < * >
      | '(' < '(' > expr ')' < ')' > ;
 
 compare = term $ (('<'  < ' < '  > term)
@@ -72,18 +67,18 @@ compare = term $ (('<'  < ' < '  > term)
                |  ('>=' < ' >='  > term)
                |  ('<=' < ' <='  > term)) ;
 
-factor = compare $ ('*' < ' * ' > compare  ) ;
+factor = compare $ ('*' < ' * ' > compare) ;
 
 callarglistp = ',' < ', ' > expr ;
-callarglist = '[' < '(' > expr $(callarglistp) ']' < ')' > ;
+callarglist = '(' < '(' > expr $(callarglistp) ')' < ')' > ;
 
 callst = 'do' .id < '' * > callarglist { ';' } ;
 
-callexpr = 'do' .id < '' * > callarglist ;
-expr = factor $ (('+' < ' + ' > factor)
-              |  ('-' < ' - ' > factor)) ;
+returnst = 'return' < '' 'return ' > expr { ';' } ;
 
-bloop = {
+callexpr = 'do' .id < '' * > callarglist ;
+
+floop = {
 '#include <stdio.h>
 #include <stdlib.h>
 ' }

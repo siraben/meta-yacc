@@ -25,25 +25,27 @@ several ways, some of which are (list is subject to change):
 - The last statement in a block does not have a semicolon
 - Variables must be declared before use
 - Comments are allowed only after procedure declarations
+- There must be a following block or statement after an `if` statement
+  (i.e. the `else` clause)
 
 A FlooP → C compiler is given in `floop.txt`.  See `floop-test.txt`
-for an example FlooP program.  Here's a simple Floop program that
-has the output:
+for an example FlooP program that prints out the prime numbers
+under 1000. Here's another simple Floop program that produces the
+output:
 ```
 Hello, world!
 Counting up to 10: 1 2 3 4 5 6 7 8 9 10 
 ```
 ```
-def count [n]:
+def count (n):
 
  'Count up from 1 to n inclusive.'
 
 begin
   int out;
   out <- 1;
-  forever:
+  loop at most n times:
   begin
-    if out > n, then: break;
     print out;
     out <- out + 1
   end;
@@ -54,7 +56,7 @@ main
 begin
   println 'Hello, world!';
   print 'Counting up to 10: ';
-  do count[10]
+  do count(10)
 end
 ```
 Generated C code:
@@ -66,18 +68,11 @@ int count(int n) {
   int out = 0;
   do {
     out = 1;
-    {
-      int f = 1;
-      while(1 && f) {
-        do {
-          if (out > n) {
-            f = 0;
-          } else { 
-            printf("%d ",out);
-          }
-          out = out + 1;
-        } while (0);
-      }
+    for(int i = 0, f = 1; i < n && f; i++) {
+      do {
+        printf("%d ",out);
+        out = out + 1;
+      } while (0);
     }
     puts("");
   } while (0);
