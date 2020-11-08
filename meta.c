@@ -5,6 +5,16 @@
 
 void meta_program();
 void meta_exp1();
+void meta_exp3();
+void meta_arg();
+void meta_output();
+void meta_exp2();
+void meta_exp1();
+void meta_comment();
+void meta_stat();
+void meta_support();
+void meta_declist();
+void meta_main();
 
 // Output name, input string, token
 char *on, *s, *t;
@@ -267,30 +277,32 @@ void meta_arg() {
 
 void meta_output() {
   do {
-    read_literal("{");
+    do {
+      read_literal("{");
+      if (flag) {
+        do {
+          meta_arg();
+        } while (flag);
+        flag = 1;
+        maybe_error();
+        read_literal("}");
+        maybe_error();
+        emit("emit_newline();");
+        emit_newline();
+      }
+      if (flag) { break; }
+      read_literal("<");
+      if (flag) {
+        do {
+          meta_arg();
+        } while (flag);
+        flag = 1;
+        maybe_error();
+        read_literal(">");
+        maybe_error();
+      }
+    } while (0);
     if (flag) {
-      do {
-        meta_arg();
-      } while (flag);
-      flag = 1;
-      maybe_error();
-      read_literal("}");
-      maybe_error();
-      emit("emit_newline();");
-      emit_newline();
-    }
-    if (flag) { break; }
-    read_literal("<");
-    if (flag) {
-      do {
-        meta_arg();
-      } while (flag);
-      flag = 1;
-      maybe_error();
-      read_literal(">");
-      maybe_error();
-      emit("unlock_labels();");
-      emit_newline();
     }
   } while (0);
 }
