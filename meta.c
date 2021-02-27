@@ -233,7 +233,7 @@ int main(int argc, char *argv[]) {
     if (p == strlen(s)) {
       fprintf(stdout, "Fully parsed %d characters.\n", p);
     } else {
-      fprintf(stderr, "%d/%d characters processed\n", p, strlen(s));
+      fprintf(stderr, "%d/%ld characters processed\n", p, strlen(s));
     }
 
     fclose(o);
