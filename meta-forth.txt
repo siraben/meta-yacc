@@ -62,15 +62,7 @@ variable lines              1 lines !
 
 : set-source! ( c-addr u -- ) slen ! s ! ;
 : c-array-ref ( a b -- a[b] ) + c@ ;
-: isspace ( c -- # )
-  dup dup
-   bl =
-  swap
-   \t =
-  or swap
-   \n =
-  or
-;
+: isspace ( c -- # ) bl over = over \t = or swap \n = or ;
 
 : isdelim   ( c -- # ) dup tick = swap tilde = or ;
 : curr-char (   -- c ) s @ p @ c-array-ref ;
@@ -80,8 +72,7 @@ variable lines              1 lines !
 
 : skip-whitespace ( -- )
   begin curr-char isspace while
-    curr-char \n = if inc-lines then
-    advance
+    curr-char \n = negate lines +! advance
   repeat
 ;
 
