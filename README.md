@@ -1,13 +1,21 @@
 # Self-hosting YACC-like parser generators in Forth and C
+![Build
+Status](https://github.com/siraben/meta-yacc/workflows/Build/badge.svg)
 
 ## Building
-### Forth
-```
-gforth meta.fs meta-forth.txt meta.fs
-```
 ### C
+```ShellSession
+$ nix build # with Nix
+$ make # without Nix
 ```
-gcc -o meta meta.c && ./meta meta-c.txt meta.c && gcc -o meta meta.c
+### Forth
+```ShellSession
+$ gforth meta.fs meta-forth.txt meta.fs
+```
+### Regenerate C/Forth code
+```ShellSession
+$ make recomp # for C code
+$ make forth_recomp # for Forth code
 ```
 ## Usage
 Suppose one has a grammar file called `my-grammar.txt`:
